@@ -1,127 +1,49 @@
 #!/usr/bin/env python
 #encoding=utf-8
 
-import sys, os, time
-from signal import SIGINT,SIGTERM,SIGKILL
- 
-def daemonize(stdout='/dev/null', stderr=None, stdin='/dev/null',
-              pidfile=None, startmsg = 'started with pid %s' ):
-    '''
-        This forks the current process into a daemon.
-        The stdin, stdout, and stderr arguments are file names that
-        will be opened and be used to replace the standard file descriptors
-        in sys.stdin, sys.stdout, and sys.stderr.
-        These arguments are optional and default to /dev/null.
-        Note that stderr is opened unbuffered, so
-        if it shares a file with stdout then interleaved output
-        may not appear in the order that you expect.
-    '''
- 
-    # flush io
-    sys.stdout.flush()
-    sys.stderr.flush()
- 
-    # Do first fork.
-    try:
-        pid = os.fork()
-        if pid > 0: sys.exit(0) # Exit first parent.
-    except OSError, e:
-        sys.stderr.write("fork #1 failed: (%d) %s\n" % (e.errno, e.strerror))
-        sys.exit(1)
- 
-    # Decouple from parent environment.
-    os.chdir("/")
-    os.umask(0)
-    os.setsid()
- 
-    # Do second fork.
-    try:
-        pid = os.fork()
-        if pid > 0: sys.exit(0) # Exit second parent.
-    except OSError, e:
-        sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror))
-        sys.exit(1)
- 
-    # Open file descriptors and print start message
-    if not stderr: stderr = stdout
-    si = file(stdin, 'r')
-    so = file(stdout, 'a+')
-    se = file(stderr, 'a+', 0)  #unbuffered
-    pid = str(os.getpid())
-    sys.stderr.write("\n%s\n" % startmsg % pid)
-    sys.stderr.flush()
-    if pidfile: file(pidfile,'w+').write("%s\n" % pid)
- 
-    # Redirect standard file descriptors.
-    os.dup2(si.fileno(), sys.stdin.fileno())
-    os.dup2(so.fileno(), sys.stdout.fileno())
-    os.dup2(se.fileno(), sys.stderr.fileno())
-    return
+import sys,os,time
+from daemonize import startstop
 
-class DaemonizeError(Exception): pass
+wdt_cmd_line = '/opt/sem5000_monitor/evoc_wdt %d'
 
-def startstop(stdout='/dev/null', stderr=None, stdin='/dev/null',
-              pidfile='pid.txt', startmsg = 'started with pid %s', action=None ):
- 
-    if not action and len(sys.argv) > 1:
-        action = sys.argv[1]
- 
-    if action:
-        try:
-            pf  = file(pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        if 'stop' == action or 'restart' == action:
-            if not pid:
-                mess = "Could not stop, pid file '%s' missing.\n"
-                raise DaemonizeError(mess % pidfile)
-            try:
-               while 1:
-                   print "sending SIGINT to",pid
-                   os.kill(pid,SIGINT)
-                   time.sleep(2)
-                   print "sending SIGTERM to",pid
-                   os.kill(pid,SIGTERM)
-                   time.sleep(2)
-                   print "sending SIGKILL to",pid
-                   os.kill(pid,SIGKILL)
-                   time.sleep(1)
-            except OSError, err:
-               print "process has been terminated."
-               os.remove(pidfile)
-               if 'stop' == action:
-                   return    ## sys.exit(0)
-               action = 'start'
-               pid = None
-        if 'start' == action:
-            if pid:
-                mess = "Start aborted since pid file '%s' exists. Server still running?\n"
-                raise DaemonizeError(mess % pidfile)
-            daemonize(stdout,stderr,stdin,pidfile,startmsg)
-            return
-    print "usage: %s start|stop|restart" % sys.argv[0]
-    raise DaemonizeError("invalid command")
-
-def test():
-    '''
-        This is an example main function run by the daemon.
-        This prints a count and timestamp once per second.
-    '''
-    sys.stdout.write ('Message to stdout...\n')
-    sys.stderr.write ('Message to stderr...\n')
+def main_routine():
+    ''' 守护进程的主操作函数 '''
     c = 0
+    lasttime = time.localtime().tm_hour
+    # 等待10分钟，等待其他进程就绪
+    #time.sleep(600)
     while 1:
-        #sys.stdout.write ('%d: %s\n' % (c, time.ctime(time.time())) )
-        #sys.stdout.flush()
-        cl = '/home/wlx/projects/evoc_wdt/evoc_wdt 60'
-        os.system(cl)
+        curtime = time.localtime().tm_hour
+        # 暂每小时重启一次
+        if curtime == lasttime:
+            # 记录时间到stdout
+            sys.stdout.write ('%d: %s' % (c, time.ctime(time.time())) )
+            sys.stdout.flush()
+
+            # 调用命令行，设置看门狗定时器超时时间
+            cl = wdt_cmd_line % 60
+            os.system(cl)
+            sys.stdout.flush()
+        else:
+            sys.stdout.write ('Reboot now.\n')
+            sys.stdout.flush()
+            os.system('shutdown -r now')
+
         c = c + 1
         time.sleep(10)
- 
+
+
+def exit_clean():
+    ''' 守护进程结束后调用本函数，做清理工作 '''
+    cl = wdt_cmd_line % 0
+    os.system(cl)
+    sys.stdout.write('monitor exit.\n')
+
 if __name__ == "__main__":
-    startstop(stdout='/tmp/sem5000_monitor.log',
-              pidfile='/tmp/sem5000_monitor.pid')
-    if sys.argv[1]in ('start', 'restart'):
-        test()
+    # 
+    startstop(stdout='/home/sem5000/sem5000_monitor.log', pidfile='/home/sem5000/sem5000_monitor.pid')
+    if sys.argv[1] in ('start', 'restart'):
+        main_routine()
+    if sys.argv[1] in ('stop',):
+        exit_clean()
+

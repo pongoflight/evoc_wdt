@@ -73,11 +73,10 @@ int SetWDT(int timeout)
 int main(int argc , char* args[])
 {
     int retval = 0, timeout = 0;
-
-    printf("Set watchdog timer...\n");
-
+    
     if (argc < 2) {
         printf("Please put 1 parameter: timeout by 0~15000 seconds.\n");
+        return -1;
     }
 
     timeout = atoi(args[1]);
@@ -87,6 +86,8 @@ int main(int argc , char* args[])
     else if (timeout > 15000) {
         timeout = 15000;
     }
+
+    printf(" timeout=%d\n", timeout);
 
     if (InitWDT() == 0) {
         retval = SetWDT(timeout);
