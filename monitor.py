@@ -4,7 +4,11 @@
 import sys,os,time
 from daemonize import startstop
 
-wdt_cmd_line = '/opt/sem5000_monitor/evoc_wdt %d'
+# 命令行：绝对路径/evoc_wdt d%
+wdt_cmd_line = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'evoc_wdt %d')
+# pid文件，日志文件路径
+pid_file = '/home/sem5000/sem5000_monitor.log'
+log_file = '/home/sem5000/sem5000_monitor.pid'
 
 def main_routine():
     ''' 守护进程的主操作函数 '''
@@ -39,9 +43,11 @@ def exit_clean():
     os.system(cl)
     sys.stdout.write('monitor exit.\n')
 
+
+# 主入口函数
 if __name__ == "__main__":
-    # 
-    startstop(stdout='/home/sem5000/sem5000_monitor.log', pidfile='/home/sem5000/sem5000_monitor.pid')
+    # startstop函数处理start/stop/restart，其中start/restart将本进程daemon化，stop将发送KILL信号至已启动的进程；
+    startstop(stdout=log_file, pidfile=pid_file)
     if sys.argv[1] in ('start', 'restart'):
         main_routine()
     if sys.argv[1] in ('stop',):
