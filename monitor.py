@@ -5,7 +5,7 @@ import sys,os,time
 from daemonize import startstop
 
 # 命令行：绝对路径/evoc_wdt d%
-wdt_cmd_line = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'evoc_wdt %d')
+wdt_cmd_line = '/opt/sem5000_monitor/evoc_wdt %d'
 # pid文件，日志文件路径
 pid_file = '/home/sem5000/sem5000_monitor.pid'
 log_file = '/home/sem5000/sem5000_monitor.log'
