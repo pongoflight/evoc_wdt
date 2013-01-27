@@ -1,9 +1,7 @@
 
-evoc_wdt:evoc_wdt.o
-	gcc -o evoc_wdt evoc_wdt.o
-
-evoc_wdt.o:evoc_wdt.c
-	gcc -c -w -o evoc_wdt.o evoc_wdt.c
+evoc_wdt:
+	gcc -fPIC -shared -DDYNAMIC -o evoc_wdt.so evoc_wdt.c
+	gcc -o evoc_wdt evoc_wdt.c
 
 clean:
-	rm -f evoc_wdt.o evoc_wdt
+	rm -f evoc_wdt.so evoc_wdt

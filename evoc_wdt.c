@@ -69,6 +69,8 @@ int SetWDT(int timeout)
     }
 }
 
+#ifndef DYNAMIC
+
 /* 参数为秒 */
 int main(int argc , char* args[])
 {
@@ -97,4 +99,7 @@ int main(int argc , char* args[])
         printf("InitWDT error.\n");
     }
     return retval;
-} 
+}
+
+#endif
+
